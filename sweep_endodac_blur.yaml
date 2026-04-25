@@ -1,0 +1,90 @@
+# EndoDAC_blur 的 wandb 超参数搜索配置示例
+# 使用方法（在 Ubuntu 环境）：
+#   1) 在 EndoDAC 目录下运行：
+#        wandb sweep sweep_endodac_blur.yaml
+#      记录输出的 sweep ID（例如 yourname/EndoDAC_blur/abc123）。
+#   2) 启动 agent 执行搜索：
+#        wandb agent yourname/EndoDAC_blur/abc123
+#   3) 在网页端的 EndoDAC_blur 项目中查看每个 run 的超参数配置和指标曲线，
+#      选择最优模型（比如按 val/loss 最小排序）。
+#
+# 说明：
+# - program 指向训练脚本 train_end_to_end.py。
+# - method 使用 bayes（贝叶斯优化），也可以改成 grid 或 random。
+# - metric.name 使用 "val/loss"，对应 Trainer.log 里记录的验证损失。
+# - parameters 中列出了固定参数（如 data_path、split）和需要搜索的超参数。
+
+program: train_end_to_end.py
+
+method: bayes    # 可选: grid / random / bayes
+
+metric:
+  name: val/loss     # 我们在 Trainer.log 里记录的验证损失键名
+  goal: minimize
+
+parameters:
+  # ===== 固定参数（根据当前实验设置） =====
+  model_name:
+    value: EndoDAC_blur_sweep   # 所有 sweep run 使用统一的 model_name 前缀
+  use_wandb:
+    value: True
+  wandb_project:
+    value: EndoDAC_blur         # 对应 options.py 中的 --wandb_project 默认值
+  dataset:
+    value: endovis
+  split:
+    value: endovis_blur         # 使用你自定义的 endovis_blur splits
+  num_epochs:
+    value: 20                   # 每个超参数组合训练 epoch 数，可按显存和时间调整
+
+  # ===== 需要搜索的超参数 =====
+  # batch_size 一般会影响显存占用，这里给出两个备选值
+  batch_size:
+    values: [4, 8]
+
+  # 主优化器学习率
+  learning_rate:
+    values: [0.00005, 0.0001, 0.0002]
+
+  # 深度平滑项权重（越大深度越平滑，可能牺牲细节）
+  disparity_smoothness:
+    values: [0.0005, 0.001, 0.002]
+
+  # transform 与 registration 一致性的约束权重
+  transform_constraint:
+    values: [0.1, 0.5, 1.0]
+
+  # transform 的平滑正则权重
+  transform_smoothness:
+    values: [0.1, 0.5, 1.0]
+
+command:
+  - ${env}
+  - python
+  - ${program}
+  - --data_path
+  - /media/hoo/新加卷/yinghui/SCARED
+  - --log_dir
+  - ./logs
+  - --model_name
+  - ${model_name}
+  - --dataset
+  - ${dataset}
+  - --split
+  - ${split}
+  - --num_epochs
+  - ${num_epochs}
+  - --batch_size
+  - ${batch_size}
+  - --learning_rate
+  - ${learning_rate}
+  - --disparity_smoothness
+  - ${disparity_smoothness}
+  - --transform_constraint
+  - ${transform_constraint}
+  - --transform_smoothness
+  - ${transform_smoothness}
+  - --use_wandb
+  - ${use_wandb}
+  - --wandb_project
+  - ${wandb_project}
